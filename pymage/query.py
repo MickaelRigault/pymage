@@ -115,13 +115,14 @@ class GALEXQuery( object ):
         if dl:
             self.download_target_data(targetname)
             
-            
+    def get_target_data(self, targetname, must_exists=True, which=["int","skygb"]):
+        """ returns the full path of galex data on your computer. """
+        urls, localpaths = self._build_target_data_url_and_path_(targetname, GALEX_DIR, which)
+        return [l_ for l_ in localpaths if os.path.exists(l_) or not must_exists]
+             
     def download_target_data(self, targetname, todl=["int","skygb"], dirout="default", overwrite=False, 
                             load_metadata=True):
-        """ Download the target galex data. """
-        if not self.is_target_known(targetname):
-            raise AttributeError("unknown target. Please run download_target_metadata()")
-            
+        """ Download the target galex data. """            
         if dirout is None or dirout in ["default"]:
             dirout = GALEX_DIR
             
@@ -131,7 +132,9 @@ class GALEXQuery( object ):
         
     def _build_target_data_url_and_path_(self, targetname, dirout, todl=["int","skygb"]):
         """ Returns the URL and download location of GALEX data """
-        
+        if not self.is_target_known(targetname):
+            raise AttributeError("unknown target. Please run download_target_metadata()")
+
         
         url_ = np.asarray([_galex_info_to_urlpath_(row["baseurl"], row["basename"], bands=row["filters"])
                for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()]).flatten()
