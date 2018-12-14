@@ -2,7 +2,10 @@
 Python module to Measure AGE bias in SN Cosmology
 
 # Installation
-git clone this 
+```
+cd WHERE YOU STORE CODES (like ~/Libraries)
+git clone https://github.com/MickaelRigault/pymage.git 
+```
 then 
 ```
 cd pymage
