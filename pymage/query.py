@@ -100,7 +100,7 @@ class GALEXQuery( object ):
         df_ = query_galex_metadata(ra,dec)
         df_["name"] = targetname
         df_["ra"] = ra
-        df_["dec"] = ra
+        df_["dec"] = dec
         if not update:
             return df_
         
