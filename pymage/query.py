@@ -10,8 +10,7 @@ from . import io
 
 GALEX_DIR            = io.DATAPATH+"GALEX/"
 _GALEX_METADATA_FILE = GALEX_DIR+"target_source.csv"
-GALEX_METADATA       = pandas.read_csv(_GALEX_METADATA_FILE) if os.path.exists(_GALEX_METADATA_FILE) else \
-  pandas.DataFrame(columns=["name","ra","dec","filters", "project","dataURL", "basename", "baseurl"])
+
 
     
 ##########################
@@ -34,6 +33,11 @@ def query_mast(ra, dec, instrument=None, radius="10 arcsec"):
 #    GENERAL TOOLS       #
 #                        #
 # ====================== #
+def _load_galex_metadata_():
+    return pandas.read_csv(_GALEX_METADATA_FILE) if os.path.exists(_GALEX_METADATA_FILE) else \
+            pandas.DataFrame(columns=["name","ra","dec","filters", "project", "basename", "baseurl"])
+
+  
 def _galex_info_to_urlpath_(baseurl, basename, todl=["int", "skybg"], bands=["NUV","FUV"]):
     """ Build URL or fullpath for the given data """
     
@@ -56,7 +60,7 @@ class GALEXQuery( object ):
     """ Simply Class to manage the GALEX data IO """
     def __init__(self):
         """ initialize Galex query. It loads the known galex meta data. """
-        self.metadata = GALEX_METADATA
+        self.metadata = _load_galex_metadata_()
     
     def download_target_metadata(self, targetname, ra, dec, 
                                  update=True, store=True, 
@@ -107,7 +111,9 @@ class GALEXQuery( object ):
         # Downloading
         
         # merge with current
-        self.metadata.drop(index=self.metadata.index[self.metadata["name"]==targetname], inplace=True)
+        if self.is_target_known(targetname):
+            self.metadata.drop(index=self.metadata.index[self.metadata["name"]==targetname], inplace=True)
+            
         self.metadata = pandas.concat([self.metadata, df_], sort=False)
         if store:
             self.metadata.to_csv(_GALEX_METADATA_FILE, index=False)

@@ -23,7 +23,8 @@ def download_single_url(url, fileout=None, mkdir=True,
             print("downloading %s"%fileout)
     
     request_fnc = "get" if not "data" in kwargs else "post"
-    cout = getattr(requests,request_fnc)(url, **kwargs)
-    with open(fileout, 'wb') as f:
-        for data in cout.iter_content(chunk):
-            f.write(data)
+    response = getattr(requests,request_fnc)(url, **kwargs)
+    if response.status_code == 200:
+        with open(fileout, 'wb') as f:
+            for data in response.iter_content(chunk):
+                f.write(data)
