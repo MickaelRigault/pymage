@@ -28,3 +28,6 @@ def download_single_url(url, fileout=None, mkdir=True,
         with open(fileout, 'wb') as f:
             for data in response.iter_content(chunk):
                 f.write(data)
+    else:
+        print("Issue downloading")
+        print("response.status_code: ", response.status_code)
