@@ -81,6 +81,16 @@ class _Query_( object ):
             raise AttributeError("unknown target. Please run download_target_metadata()")
         # This assumes all entry at the same name have the same coordinate as it should.
         return np.asarray(self.metadata[self.metadata["name"]==targetname].iloc[0].get(["ra","dec"]).values, dtype="float")
+
+    def get_target(self, targetname):
+        """ Loads an astrobject target (name, ra, dec) and returns it """
+        from astrobject import get_target
+        ra,dec = self.get_target_coords(targetname)
+        return get_target(name=targetname, ra=ra, dec=dec)
+
+    def get_target_instruments(self, targetname):
+        """ """
+        raise NotImplementedError("This method has not been implemented")
     
     # ------------- #
     #  Downloader   #
@@ -201,7 +211,7 @@ _GALEX_METADATA_FILE = GALEX_DIR+"target_source.csv"
 def query_mast(ra, dec, instrument=None, radius="10 arcsec"):
     """ returns a table containing the existing data information """
     from astroquery.mast import Observations
-    t = Observations.query_region("%.5f %+.5f"%(ra,dec), radius="10 arcsec")
+    t = Observations.query_region("%.5f %+.5f"%(ra,dec), radius=radius)
     if instrument is not None:
         return t[t["obs_collection"]==instrument]
     
@@ -227,7 +237,32 @@ def query_galex_metadata(ra, dec):
 class GALEXQuery( _Query_ ):
     """ Simply Class to manage the GALEX data IO """
     INSTRUMENT = "GALEX"
+    def get_target_instruments(self, targetname, contains=None):
+        """ """
+        if not self.is_target_known(targetname):
+            raise AttributeError("unknown target. Please run download_target_metadata(), and download the associated files")
 
+        from astrobject import instruments
+        # Which data to use
+        target_data = self.get_target_data(targetname)
+        all_data_int    = [f for f in target_data if "int" in f and (contains is None or contains in f)]
+        # Which data to use
+        target = self.get_target(targetname)
+        instru = []
+        for fullpath in [f for f in all_data_int if f.replace("int","skybg") in target_data]:
+            inst_ = instruments.get_instrument(fullpath)
+            if not inst_.is_target_in(target):
+                print("Given target not inside GALEX FoV for %s - skipped"%fullpath)
+                continue
+            
+            inst_.set_sky(fullpath.replace("int","skybg"))
+            inst_.set_target(target)
+            instru.append(inst_)
+            
+        return instru
+                              
+        
+                               
     
 # ====================== #
 #                        #
