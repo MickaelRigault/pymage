@@ -13,20 +13,30 @@ from . import io
 KNOWN_INSTRUMENTS  = ["galex", "sdss"]
 
 def query_metadata(instrument, ra, dec):
-    """ """
+    """ query metadata for the given intrument and coordinates
+    the metadata are information about filename and url
+    """
     return eval("query_%s_metadata(ra, dec)"%_test_instrument_(instrument))
 
-def load_metadata(instrument):
-    """ """
+def load_metadata(instrument, load_empty=False):
+    """ Load existing metadata for the given instrument 
+    Returns
+    -------
+    Pandas.DataFrame #  columns are (at least) "name","ra","dec","filters", "project", "basename", "baseurl"
+    """
+    empty = pandas.DataFrame(columns=["name","ra","dec","filters", "project", "basename", "baseurl"])
+    if load_empty:
+        return empty
+    
     metadata_file = _get_metadata_file_(_test_instrument_(instrument))
-    return pandas.read_csv(metadata_file) if os.path.exists(metadata_file) else \
-             pandas.DataFrame(columns=["name","ra","dec","filters", "project", "basename", "baseurl"])
+    return pandas.read_csv(metadata_file) if os.path.exists(metadata_file) else empty    
 
 def get_directory(instrument):
-    """ """
+    """ The default instrument directory on your computer """
     return  io.DATAPATH+"%s/"%instrument.upper()
 
 def metadata_to_url(instrument, baseurl, basename, bands, **kwargs):
+    """ build url (or local fullpath) from metadata information """
     return eval("_%s_info_to_urlpath_(baseurl=baseurl, basename=basename, bands=bands,**kwargs)"%_test_instrument_(instrument) )
 
 def _get_metadata_file_(instrument):
@@ -38,6 +48,7 @@ def _test_instrument_(instrument):
     if instrument.lower() not in KNOWN_INSTRUMENTS:
         raise NotImplementedError("unknown instrument: %s"%instrument +"\n"+"known instruments: "+",".join(KNOWN_INSTRUMENTS))
     return instrument.lower()
+
 ##########################
 #                        #
 #    GENERAL TOOLS       #
@@ -47,10 +58,33 @@ class _Query_( object ):
     """ Simply Class to manage data IO """
     INSTRUMENT = "to_be_defined"
     
-    def __init__(self):
+    def __init__(self, empty=False):
         """ initialize query. It loads the known `instrument` meta data. """
-        self.metadata = load_metadata(self.INSTRUMENT)
+        self.metadata = load_metadata(self.INSTRUMENT, load_empty=empty)
 
+    # --------- #
+    #  GETTER   #
+    # --------- #
+    def get_target_data(self, targetname, must_exists=True, fromdir="default", filters="*", **kwargs):
+        """ returns the full path of data on your computer. 
+        
+        """
+        if fromdir is None or fromdir in ["default"]:
+            fromdir = self._default_dldir
+
+        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir, filters=filters, **kwargs)
+        return [l_ for l_ in localpaths if os.path.exists(l_) or not must_exists]
+
+    def get_target_coords(self, targetname):
+        """ """
+        if not self.is_target_known(targetname):
+            raise AttributeError("unknown target. Please run download_target_metadata()")
+        # This assumes all entry at the same name have the same coordinate as it should.
+        return np.asarray(self.metadata[self.metadata["name"]==targetname].iloc[0].get(["ra","dec"]).values, dtype="float")
+    
+    # ------------- #
+    #  Downloader   #
+    # ------------- #
     def query_metadata(self, ra, dec):
         """ """
         df_ = query_metadata(self.INSTRUMENT, ra, dec)
@@ -114,15 +148,7 @@ class _Query_( object ):
         # Downloading
         if dl:
             self.download_target_data(targetname)
-            
-    def get_target_data(self, targetname, must_exists=True, fromdir="default",**kwargs):
-        """ returns the full path of data on your computer. """
-        if fromdir is None or fromdir in ["default"]:
-            fromdir = self._default_dldir
 
-        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir, **kwargs)
-        return [l_ for l_ in localpaths if os.path.exists(l_) or not must_exists]
-             
     def download_target_data(self, targetname, dirout="default",
                                  overwrite=False, load_metadata=True, **kwargs):
         """ Download the target photometric data. """
@@ -133,15 +159,17 @@ class _Query_( object ):
         for url_, localpath_ in zip(urls, localpaths):
             io.download_single_url(url_, localpath_, overwrite=overwrite)
         
-    def _build_target_data_url_and_path_(self, targetname, dirout, **kwargs):
+    def _build_target_data_url_and_path_(self, targetname, dirout, filters=None, **kwargs):
         """ Returns the URL and download location of data """
         if not self.is_target_known(targetname):
             raise AttributeError("unknown target. Please run download_target_metadata()")
 
         url_ = np.asarray([metadata_to_url(self.INSTRUMENT, row["baseurl"], row["basename"], bands=row["filters"], **kwargs)
-               for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()]).flatten()
+               for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()
+                               if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         localpath_ = np.asarray([metadata_to_url(self.INSTRUMENT, dirout, row["basename"], bands=row["filters"], **kwargs)
-                for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()]).flatten()
+                for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()
+                               if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         
         return url_, localpath_
         
@@ -189,13 +217,17 @@ def query_galex_metadata(ra, dec):
     """ look for GALEX meta data inside MAST archive """        
     t = query_mast(ra, dec, instrument="GALEX")
     df = pandas.DataFrame(dict(t[["filters", "project","target_name"]]))
-    df["basename"] = df.pop("target_name")
+    df["basename"] = [t_.replace("_1_","_sg") if t_.startswith("AIS") else t_ for t_ in df.pop("target_name")]
     df = df.assign(baseurl= ["/".join(url_.split("/")[:-1]) for url_ in t["dataURL"].data])
     return df
-           
+
+#
+# CLASS 
+#
 class GALEXQuery( _Query_ ):
     """ Simply Class to manage the GALEX data IO """
     INSTRUMENT = "GALEX"
+
     
 # ====================== #
 #                        #
@@ -239,9 +271,9 @@ def _sdss_info_to_urlpath_(baseurl, basename, bands=None):
     """
     return baseurl+"/"+basename+".fits.bz2"
 
-
-
-#URLSOURCE = "https://dr12.sdss.org/fields/"#raDec?ra=257.546516&dec=%2B21.649036
+#
+# CLASS 
+#
 class SDSSQuery( _Query_ ):
     """ """
     INSTRUMENT = "SDSS"    
