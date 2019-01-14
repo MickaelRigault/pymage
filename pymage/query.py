@@ -65,14 +65,16 @@ class _Query_( object ):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_target_data(self, targetname, must_exists=True, fromdir="default", filters="*", **kwargs):
+    def get_target_data(self, targetname, must_exists=True, fromdir="default",
+                            filters="*", **kwargs):
         """ returns the full path of data on your computer. 
         
         """
         if fromdir is None or fromdir in ["default"]:
             fromdir = self._default_dldir
 
-        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir, filters=filters, **kwargs)
+        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir,
+                                                                     filters=filters, **kwargs)
         return [l_ for l_ in localpaths if os.path.exists(l_) or not must_exists]
 
     def get_target_coords(self, targetname):
@@ -80,7 +82,8 @@ class _Query_( object ):
         if not self.is_target_known(targetname):
             raise AttributeError("unknown target. Please run download_target_metadata()")
         # This assumes all entry at the same name have the same coordinate as it should.
-        return np.asarray(self.metadata[self.metadata["name"]==targetname].iloc[0].get(["ra","dec"]).values, dtype="float")
+        return np.asarray(self.metadata[self.metadata["name"]==targetname
+                                        ].iloc[0].get(["ra","dec"]).values, dtype="float")
 
     def get_target(self, targetname):
         """ Loads an astrobject target (name, ra, dec) and returns it """
@@ -88,9 +91,17 @@ class _Query_( object ):
         ra,dec = self.get_target_coords(targetname)
         return get_target(name=targetname, ra=ra, dec=dec)
 
-    def get_target_instruments(self, targetname):
-        """ """
-        raise NotImplementedError("This method has not been implemented")
+    
+    def get_target_instruments(self, targetname, contains=None):
+        """ Return a list of Astrobject's Instrument for each entry coresponding to the given target """
+        if not self.is_target_known(targetname):
+            raise AttributeError("unknown target. Please run download_target_metadata(), and download the associated files")
+
+        from astrobject import instruments
+        target_data = self.get_target(targetname)
+        return [instruments.get_instrument(f_, astrotarget=target_data)
+                for f_ in self.get_target_data(targetname) if contains is None or contains in f_]
+    
     
     # ------------- #
     #  Downloader   #
