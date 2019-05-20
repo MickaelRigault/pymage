@@ -164,7 +164,14 @@ class _Query_( object ):
             
         self.metadata = pandas.concat([self.metadata, df_], sort=False)
         if store:
-            self.metadata.to_csv(_get_metadata_file_(self.INSTRUMENT), index=False)
+            fileout = _get_metadata_file_(self.INSTRUMENT)
+            if not os.path.dirname(fileout):
+                if io.DATAPATH == "_notdefined_":
+                    raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
+                
+                os.mkdir(os.path.dirname(fileout))
+                
+            self.metadata.to_csv(fileout, index=False)
             
         # Downloading
         if dl:
@@ -175,7 +182,9 @@ class _Query_( object ):
         """ Download the target photometric data. """
         if dirout is None or dirout in ["default"]:
             dirout = self._default_dldir
-            
+        if io.DATAPATH == "_notdefined_":
+            raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
+        
         urls, localpaths = self._build_target_data_url_and_path_(targetname, dirout, **kwargs)
         for url_, localpath_ in zip(urls, localpaths):
             io.download_single_url(url_, localpath_, overwrite=overwrite)

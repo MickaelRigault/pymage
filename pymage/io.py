@@ -3,8 +3,10 @@
 
 
 import os
-DATAPATH = os.getenv("DATAPATH")
-
+import warnings
+DATAPATH = os.getenv("DATAPATH","_notdefined_")
+if DATAPATH == "_notdefined_":
+    warnings.warn("You don't have a global variable named 'DATAPATH'. You need one to be able to download data. They will be stored in $DATAPATH/{INSTRUNAME}/bla")
 
 def download_single_url(url, fileout=None, mkdir=True,
                         overwrite=False, verbose=True, chunk=1024, **kwargs):
