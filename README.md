@@ -69,7 +69,7 @@ This module relies on `pymage.query.py` for accessing  the data associated to th
 Let's consider SN2005ir ra=19.18233, dec=0.79456, zcmb=0.07517:
 ```python
 from pymage import phototarget
-ptarget = phototarget.PhotoTarget(ra=19.18233, dec=0.79456, zcmb=0.07517, name="SN2005ir")
+pt = phototarget.PhotoTarget(ra=19.18233, dec=0.79456, zcmb=0.07517, name="SN2005ir")
 # Let's load sdss images and attach them to the current object
 pt.load_instrument("sdss")
 # Let's do the same for galex (which is slightly slower)
