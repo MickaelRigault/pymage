@@ -8,9 +8,7 @@ from astroquery.mast import Observations
 
 from . import io
 
-
-
-KNOWN_INSTRUMENTS  = ["galex", "sdss"]
+KNOWN_INSTRUMENTS  = ["galex", "sdss", "panstarrs"]
 
 def query_metadata(instrument, ra, dec):
     """ query metadata for the given intrument and coordinates
@@ -22,9 +20,11 @@ def load_metadata(instrument, load_empty=False):
     """ Load existing metadata for the given instrument 
     Returns
     -------
-    Pandas.DataFrame #  columns are (at least) "name","ra","dec","filters", "project", "basename", "baseurl"
+    Pandas.DataFrame 
+    //(columns are (at least) "name","ra","dec","filters", "project", "basename", "baseurl")
     """
-    empty = pandas.DataFrame(columns=["name","ra","dec","filters", "project", "basename", "baseurl"])
+    empty = pandas.DataFrame(columns=["name","ra","dec","filters", "project",
+                                      "basename", "baseurl"])
     if load_empty:
         return empty
     
@@ -165,7 +165,7 @@ class _Query_( object ):
         self.metadata = pandas.concat([self.metadata, df_], sort=False)
         if store:
             fileout = _get_metadata_file_(self.INSTRUMENT)
-            if not os.path.dirname(fileout):
+            if not os.path.isdir(os.path.dirname(fileout)):
                 if io.DATAPATH == "_notdefined_":
                     raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
                 
@@ -176,7 +176,9 @@ class _Query_( object ):
         # Downloading
         if dl:
             self.download_target_data(targetname)
-
+            
+        return 0 # 0 means no problem
+            
     def download_target_data(self, targetname, dirout="default",
                                  overwrite=False, load_metadata=True, **kwargs):
         """ Download the target photometric data. """
@@ -279,10 +281,7 @@ class GALEXQuery( _Query_ ):
             inst_.set_target(target)
             instru.append(inst_)
             
-        return instru
-                              
-        
-                               
+        return instru     
     
 # ====================== #
 #                        #
@@ -331,4 +330,125 @@ def _sdss_info_to_urlpath_(baseurl, basename, bands=None):
 #
 class SDSSQuery( _Query_ ):
     """ """
-    INSTRUMENT = "SDSS"    
+    INSTRUMENT = "SDSS"
+
+
+
+    
+
+# ====================== #
+#                        #
+#  PanStarrs             #
+#                        #
+# ====================== #
+PANSTARRS_DIR            = io.DATAPATH+"PanSTARRS/"
+_PANSTARRS_METADATA_FILE = PANSTARRS_DIR+"target_source.csv"
+
+def query_panstarrs_metadata(ra, dec, size=240, filters="grizy"):
+    
+    """ Query ps1filenames.py service to get a list of images
+    
+    Parameters
+    ----------
+    ra, dec: [floats] 
+        position in degrees
+    size: [float] 
+        image size in pixels (0.25 arcsec/pixel)
+    filters: [strings]
+        string with filters to include
+        
+    Returns
+    --------
+    Table (a table with the results)
+    """
+    
+
+    service = "https://ps1images.stsci.edu/cgi-bin/ps1filenames.py"
+    url = ("{service}?ra={ra}&dec={dec}&size={size}&format=fits"
+           "&filters={filters}").format(**locals())
+    d_ = pandas.read_csv(url, sep=" ")
+    d_["basename"] = d_.pop("shortname")
+    d_["baseurl"]  = d_.pop("filename")
+    d_["project"]  = "ps1"
+    d_["filters"] = d_["filter"]
+    return d_
+
+def _ps_pstodata_(dataframe, directory):
+    """ """
+    return [directory+"%s_"%target_+"%s"%basename_
+                for target_,basename_ in zip(dataframe["name"],dataframe["basename"])]
+    
+def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
+    """ Get URL for images in the table
+    
+    Parameters
+    ----------
+    format: [string] 
+        data format (options are "jpg", "png" or "fits")
+                
+    Returns
+    -------
+    String (a string with the URL)
+    """
+    if format not in ["jpg","png","fits"]:
+        raise ValueError("format must be one of jpg, png, fits (%s given)"%format)
+    
+    url = ("https://ps1images.stsci.edu/cgi-bin/fitscut.cgi?"
+           "ra={ra}&dec={dec}&size={size}&format={format}").format(
+               **{"ra":dataframe["ra"].values[0],"dec":dataframe["dec"].values[0],
+                      "size":size,"format":format})
+    if output_size:
+        url = url + "&output_size={}".format(output_size)
+        
+    # sort filters from red to blue
+    urlbase = url + "&red="
+    return [urlbase+filename for filename in dataframe['baseurl'].values]
+
+def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", format="fits", color=False):
+    
+    """ Get URL for images in the table
+    
+    Parameters
+    ----------
+    ra, dec: [floats] 
+        position in degrees
+
+    size: [float] 
+        image size in pixels (0.25 arcsec/pixel)
+
+    filters: [strings]
+        string with filters to include
+
+    format: [string] 
+        data format (options are "jpg", "png" or "fits")
+        
+    color: [bool]
+        if True, creates a color image (only for jpg or png format).
+        Default is return a list of URLs for single-filter grayscale images.
+        
+    Returns
+    -------
+    String (a string with the URL)
+    """
+        
+    df = query_panstarrs_metadata(ra, dec, size=size, filters=filters)
+    return _ps_pstourl_(df, output_size=output_size, size=size, format=format, color=color)
+#
+# Class
+#
+class PanSTARRSQuery( _Query_ ):
+    """ """
+    INSTRUMENT = "PanSTARRS"
+
+    def _build_target_data_url_and_path_(self, targetname, dirout, filters=None, **kwargs):
+        """ Returns the URL and download location of data """
+        if not self.is_target_known(targetname):
+            raise AttributeError("unknown target. Please run download_target_metadata()")
+
+        dataframe = self.metadata[self.metadata["name"]==targetname]
+        if filters is not None:
+            dataframe = dataframe[dataframe["filters"].isin(filters)]
+        url_ = _ps_pstourl_(dataframe)
+        localpath_ = _ps_pstodata_(dataframe, dirout)
+        
+        return url_, localpath_
