@@ -92,15 +92,25 @@ class _Query_( object ):
         return get_target(name=targetname, ra=ra, dec=dec)
 
     
-    def get_target_instruments(self, targetname, contains=None):
+    def get_target_instruments(self, targetname, cachedl=False, filters="*"):
         """ Return a list of Astrobject's Instrument for each entry coresponding to the given target """
         if not self.is_target_known(targetname):
             raise AttributeError("unknown target. Please run download_target_metadata(), and download the associated files")
 
         from astrobject import instruments
         target_data = self.get_target(targetname)
-        return [instruments.get_instrument(f_, astrotarget=target_data)
-                for f_ in self.get_target_data(targetname) if contains is None or contains in f_]
+        
+        # Cache Download
+        load_prop = dict(target=target_data, instrument=self.INSTRUMENT.lower())
+        if cachedl:
+            sourcefile = self.download_target_data(targetname, "default", filters=filters, dl=False)[0]
+            load_prop["cache"]=False
+        else:
+            sourcefile = self.get_target_data(targetname,filters=filters)
+            
+        # load files
+        return [instruments.get_instrument(f_, **load_prop)
+                for f_ in sourcefile]
     
     
     # ------------- #
@@ -180,16 +190,55 @@ class _Query_( object ):
         return 0 # 0 means no problem
             
     def download_target_data(self, targetname, dirout="default",
-                                 overwrite=False, load_metadata=True, **kwargs):
-        """ Download the target photometric data. """
+                                 overwrite=False,
+                                 dl=True, **kwargs):
+        """ Download the target photometric data. 
+        
+        Parameters
+        ----------
+        targetname: 
+            Name of a target known by the class
+
+        dirout: [string] -optional-
+            Where shall the data be downloaded
+            - "default": the default local structure | use this if unsure
+            - "PATH": provide any path, the data will be downloaded here
+            - "StringIO": download the data inside StringIO files [they will be returned]
+
+        overwrite: [bool] -optional-
+            If the file already exists where you want to download them, should this overwrite them?
+            
+        dl: [bool] -optional-
+            Should the download be actually launched ? 
+            If False: the returns the urls to be downloaded and where they will be.
+
+        **kwargs goes to _build_target_data_url_and_path_
+
+        Returns
+        -------
+        None (or list of StringIO if dirout='StringIO')
+    
+        """
         if dirout is None or dirout in ["default"]:
             dirout = self._default_dldir
         if io.DATAPATH == "_notdefined_":
             raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
+
+        if dirout in ["StringIO", "stringio", "iostring", "io", "BytesIO","BytesIO","bytes"]:
+            urls = self._build_target_data_url_and_path_(targetname, "default", **kwargs)[0]
+            # Bytes IO are more suitable for internet requests
+            localpaths = ["BytesIO" for i in range(len(urls))]
+            is_stringio=True
+            overwrite=True
+        else:
+            urls, localpaths = self._build_target_data_url_and_path_(targetname, dirout, **kwargs)
+            is_stringio=False
+
+        if not dl:
+            return urls, localpaths
         
-        urls, localpaths = self._build_target_data_url_and_path_(targetname, dirout, **kwargs)
-        for url_, localpath_ in zip(urls, localpaths):
-            io.download_single_url(url_, localpath_, overwrite=overwrite)
+        return [io.download_single_url(url_, localpath_, overwrite=overwrite)
+                    for url_, localpath_ in zip(urls, localpaths)]
         
     def _build_target_data_url_and_path_(self, targetname, dirout, filters=None, **kwargs):
         """ Returns the URL and download location of data """
@@ -378,7 +427,7 @@ def _ps_pstodata_(dataframe, directory):
     return [directory+"%s_"%target_+"%s"%basename_
                 for target_,basename_ in zip(dataframe["name"],dataframe["basename"])]
     
-def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
+def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None, filters="grizy"):
     """ Get URL for images in the table
     
     Parameters
@@ -394,7 +443,7 @@ def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
         raise ValueError("format must be one of jpg, png, fits (%s given)"%format)
     
     url = ("https://ps1images.stsci.edu/cgi-bin/fitscut.cgi?"
-           "ra={ra}&dec={dec}&size={size}&format={format}").format(
+           "ra={ra}&dec={dec}&size={size}&format={format}&filters={filters}").format(
                **{"ra":dataframe["ra"].values[0],"dec":dataframe["dec"].values[0],
                       "size":size,"format":format})
     if output_size:

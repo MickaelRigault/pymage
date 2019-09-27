@@ -3,6 +3,7 @@
 
 
 import os
+import io
 import warnings
 DATAPATH = os.getenv("DATAPATH","_notdefined_")
 if DATAPATH == "_notdefined_":
@@ -27,6 +28,9 @@ def download_single_url(url, fileout=None, mkdir=True,
     request_fnc = "get" if not "data" in kwargs else "post"
     response = getattr(requests,request_fnc)(url, **kwargs)
     if response.status_code == 200:
+        if fileout in ["BytesIO", "StringIO"]:
+            return getattr(io, fileout)(response.content)
+        
         with open(fileout, 'wb') as f:
             for data in response.iter_content(chunk):
                 f.write(data)
