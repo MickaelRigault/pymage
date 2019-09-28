@@ -715,8 +715,11 @@ class PS1Target(object):
         from astrobject import get_target
         filters = np.atleast_1d(filters)
         self._url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size)
-        self._cutout = {b:panstarrs.PanSTARRS( download_single_url(url, fileout="BytesIO"))
-                            for b,url in zip(filters, self._url)}
+        self._cutout = {}
+        for url in self._url:
+            inst_ = panstarrs.PanSTARRS( download_single_url(url, fileout="BytesIO"))
+            self._cutout[inst_.bandname.split(".")[-1]] = inst_
+            
         if self.coordinate is not None:
             for img in self._cutout.values():
                 img.set_target(get_target(ra=self.coordinate.ra.deg,
