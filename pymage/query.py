@@ -299,6 +299,7 @@ def query_galex_metadata(ra, dec):
     t = query_mast(ra, dec, instrument="GALEX")
     df = pandas.DataFrame(dict(t[["filters", "project","target_name"]]))
     df["basename"] = [t_.replace("_1_","_sg") if t_.startswith("AIS") else t_ for t_ in df.pop("target_name")]
+    df["basename"] = [b_.replace("_sg","_sg0") if "_sg" in b_ and len(b_.split("_sg")[-1])==1 else b_ for b_ in df["basename"]]
     df = df.assign(baseurl= ["/".join(url_.split("/")[:-1]) for url_ in t["dataURL"].data])
     return df
 

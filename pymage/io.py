@@ -23,7 +23,7 @@ def download_single_url(url, fileout=None, mkdir=True,
         return
     else:
         if verbose and fileout:
-            print("downloading %s"%fileout)
+            print("downloading %s -> %s"%(url,fileout))
     
     request_fnc = "get" if not "data" in kwargs else "post"
     response = getattr(requests,request_fnc)(url, **kwargs)
