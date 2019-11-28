@@ -707,7 +707,7 @@ class PS1Target(object):
             self._is_extended_cat_set = False
             return results
 
-    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True):
+    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True, background=0):
         """ """
         if not _HAS_ASTROBJECT:
             raise ImportError("This method needs astrobject. pip install astropbject")
@@ -717,7 +717,7 @@ class PS1Target(object):
         self._url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size)
         self._cutout = {}
         for url in self._url:
-            inst_ = panstarrs.PanSTARRS( download_single_url(url, fileout="BytesIO"))
+            inst_ = panstarrs.PanSTARRS( download_single_url(url, fileout="BytesIO"), background=background)
             self._cutout[inst_.bandname.split(".")[-1]] = inst_
             
         if self.coordinate is not None:

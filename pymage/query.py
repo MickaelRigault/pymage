@@ -174,21 +174,25 @@ class _Query_( object ):
             
         self.metadata = pandas.concat([self.metadata, df_], sort=False)
         if store:
-            fileout = _get_metadata_file_(self.INSTRUMENT)
-            if not os.path.isdir(os.path.dirname(fileout)):
-                if io.DATAPATH == "_notdefined_":
-                    raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
-                
-                os.mkdir(os.path.dirname(fileout))
-                
-            self.metadata.to_csv(fileout, index=False)
+            self.store()
             
         # Downloading
         if dl:
             self.download_target_data(targetname)
             
         return 0 # 0 means no problem
-            
+
+    def store(self):
+        """ """
+        fileout = _get_metadata_file_(self.INSTRUMENT)
+        if not os.path.isdir(os.path.dirname(fileout)):
+            if io.DATAPATH == "_notdefined_":
+                raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
+                
+            os.mkdir(os.path.dirname(fileout))
+                
+        self.metadata.to_csv(fileout, index=False)
+        
     def download_target_data(self, targetname, dirout="default",
                                  overwrite=False,
                                  dl=True, **kwargs):
