@@ -450,7 +450,7 @@ def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None, filters=
     url = ("https://ps1images.stsci.edu/cgi-bin/fitscut.cgi?"
            "ra={ra}&dec={dec}&size={size}&format={format}&filters={filters}").format(
                **{"ra":dataframe["ra"].values[0],"dec":dataframe["dec"].values[0],
-                      "size":size,"format":format})
+                      "size":size,"format":format,"filters":filters})
     if output_size:
         url = url + "&output_size={}".format(output_size)
         
