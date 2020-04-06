@@ -15,24 +15,26 @@ class PhotoTarget( AstroTarget ):
     # -------- #
     #  LOADER  #
     # -------- #
-    def load_instrument(self, which=["galex", "sdss"]):
+    def load_instrument(self, which=["galex", "sdss"], **kwargs):
         """ """
         which = np.atleast_1d(which)
         if "galex" in which:
-            self._load_galex_()
+            self._load_galex_(**kwargs)
         if "sdss" in which:
-            self._load_sdss_()
+            self._load_sdss_(**kwargs)
         
-    def _load_galex_(self):
+    def _load_galex_(self, nb_inst=None, **kwargs):
         """ """
         if "galex" not in self.instruments:
             self.instruments["galex"] = {"nuv":[], "fuv":[]}
             
-        for inst_ in GALEXQuery.get_target_instruments(self.name):
+        for ii, inst_ in enumerate(GALEXQuery.get_target_instruments(self.name)):
+            if nb_inst is not None and ii == nb_inst:
+                break
             inst_.set_target(self, test_inclusion=False)
             self.instruments["galex"][inst_.bandname].append(inst_)
 
-    def _load_sdss_(self):
+    def _load_sdss_(self, **kwargs):
         """ """
         if "sdss" not in self.instruments:
             self.instruments["sdss"] = {"sdssu":[], "sdssg":[], "sdssr":[], "sdssi":[], "sdssz":[]}
