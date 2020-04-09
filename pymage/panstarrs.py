@@ -230,7 +230,7 @@ def resolve(name):
 #  Images              #
 #                      #
 # ==================== #
-def query_panstarrs_metadata(ra, dec, size=240, filters="grizy"):
+def query_panstarrs_metadata(ra, dec, size=240, filters="grizy", type="stack"):
     
     """ Query ps1filenames.py service to get a list of images
     
@@ -250,7 +250,7 @@ def query_panstarrs_metadata(ra, dec, size=240, filters="grizy"):
     
 
     service = "https://ps1images.stsci.edu/cgi-bin/ps1filenames.py"
-    url = ("{service}?ra={ra}&dec={dec}&size={size}&format=fits"
+    url = ("{service}?ra={ra}&dec={dec}&size={size}&type={type}&format=fits"
            "&filters={filters}").format(**locals())
     d_ = pandas.read_csv(url, sep=" ")
     d_["basename"] = d_.pop("shortname")
@@ -264,7 +264,7 @@ def _ps_pstodata_(dataframe, directory):
     return [directory+"%s_"%target_+"%s"%basename_
                 for target_,basename_ in zip(dataframe["name"],dataframe["basename"])]
     
-def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
+def _ps_pstourl_(dataframe, format="fits", size=240, type="stack", output_size=None):
     """ Get URL for images in the table
     
     Parameters
@@ -280,9 +280,9 @@ def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
         raise ValueError("format must be one of jpg, png, fits (%s given)"%format)
     
     url = ("https://ps1images.stsci.edu/cgi-bin/fitscut.cgi?"
-           "ra={ra}&dec={dec}&size={size}&format={format}").format(
+           "ra={ra}&dec={dec}&size={size}&type={type}&format={format}").format(
                **{"ra":dataframe["ra"].values[0],"dec":dataframe["dec"].values[0],
-                      "size":size,"format":format})
+                      "size":size, "type":type,"format":format})
     if output_size:
         url = url + "&output_size={}".format(output_size)
         
@@ -290,7 +290,7 @@ def _ps_pstourl_(dataframe, format="fits", size=240,  output_size=None):
     urlbase = url + "&red="
     return [urlbase+filename for filename in dataframe['baseurl'].values]
 
-def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", format="fits"):#, color=False):
+def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", type="stack", format="fits"):#, color=False):
     
     """ Get URL for images in the table
     
@@ -318,7 +318,7 @@ def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", format="fit
     """
         
     df = query_panstarrs_metadata(ra, dec, size=size, filters=filters)
-    return _ps_pstourl_(df, output_size=output_size, size=size, format=format)#, color=color)
+    return _ps_pstourl_(df, output_size=output_size, size=size, type=type, format=format)#, color=color)
 
 
 def download_single_url(url, fileout=None, mkdir=True,
@@ -707,24 +707,29 @@ class PS1Target(object):
             self._is_extended_cat_set = False
             return results
 
-    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True, background=0):
+    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True, load_weight=False, background=0, target=None):
         """ """
         if not _HAS_ASTROBJECT:
             raise ImportError("This method needs astrobject. pip install astropbject")
         
         from astrobject import get_target
         filters = np.atleast_1d(filters)
-        self._url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size)
+        self._url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size, type="stack")
+        if load_weight:
+            _wt_url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size, type="stack.wt")
         self._cutout = {}
-        for url in self._url:
-            inst_ = panstarrs.PanSTARRS( download_single_url(url, fileout="BytesIO"), background=background)
+        for ii, url in enumerate(self._url):
+            inst_ = panstarrs.PanSTARRS(download_single_url(url, fileout="BytesIO"),
+                                        weightfilename=download_single_url(_wt_url[ii], fileout="BytesIO") if load_weight else None,
+                                        background=background, astrotarget=target)
             self._cutout[inst_.bandname.split(".")[-1]] = inst_
-            
+        
         if self.coordinate is not None:
             for img in self._cutout.values():
-                img.set_target(get_target(ra=self.coordinate.ra.deg,
-                                          dec=self.coordinate.dec.deg
-                                          ))
+                if not img.has_target():
+                    img.set_target(get_target(ra=self.coordinate.ra.deg,
+                                              dec=self.coordinate.dec.deg
+                                              ))
         if run_sep:
             self.sep_extract("*")
             self.set_sep(filters[0])
