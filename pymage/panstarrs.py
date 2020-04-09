@@ -317,7 +317,7 @@ def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", type="stack
     String (a string with the URL)
     """
         
-    df = query_panstarrs_metadata(ra, dec, size=size, filters=filters)
+    df = query_panstarrs_metadata(ra, dec, size=size, type=type, filters=filters)
     return _ps_pstourl_(df, output_size=output_size, size=size, type=type, format=format)#, color=color)
 
 
