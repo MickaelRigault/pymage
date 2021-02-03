@@ -953,14 +953,14 @@ class PS1Target(object):
     # -------- #
     # PLOTTER  #
     # -------- #
-    def show(self, ax=None, band="r", show_coord=None,
+    def show(self, ax=None, band="r", show_coord=None, show=True,
         source='sep', ellipse=True, ell_color="k", coord_color="C1",
         scaleup=3, show_target=True, cmap=mpl.cm.viridis, **kwargs
     ):
         """ """
         if self.has_imgcutout():
             img = self.imgcutout[band]
-            ax = img.show(ax=ax, show_sepobjects=False, show_target=show_target, cmap=cmap)['ax']
+            ax = img.show(ax=ax, show_sepobjects=False, show=show, show_target=show_target, cmap=cmap)['ax']
             inpixel=True
             has_img=True
         elif ax is None:
