@@ -10,6 +10,7 @@ from urllib.parse import quote as urlencode
 from urllib.request import urlretrieve
 import http.client as httplib 
 
+import matplotlib.pyplot as mpl
 from astropy import coordinates, units
 from astropy.io import ascii
 from astropy.table import Table
@@ -948,21 +949,22 @@ class PS1Target(object):
             return self.__class__(dataframe_nearest)
         else:
             return [self.__class__(df) for df in dataframe_nearest.iterrows()]
-    
+
     # -------- #
     # PLOTTER  #
     # -------- #
     def show(self, ax=None, band="r", show_coord=None,
-                 source='sep', ellipse=True, ell_color="k",
-                 coord_color="C1",scaleup=3,**kwargs):
+        source='sep', ellipse=True, ell_color="k", coord_color="C1",
+        scaleup=3, show_target=True, cmap=mpl.cm.viridis, **kwargs
+    ):
         """ """
         if self.has_imgcutout():
             img = self.imgcutout[band]
-            ax = img.show(ax=ax,show_sepobjects=False)['ax']
+            ax = img.show(ax=ax, show_sepobjects=False, show_target=show_target, cmap=cmap)['ax']
             inpixel=True
             has_img=True
         elif ax is None:
-            import matplotlib.pyplot as mpl
+
             fig = mpl.figure(figsize=[5,5])
             ax = fig.add_subplot(111)
             inpixel=False
