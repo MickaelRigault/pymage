@@ -973,26 +973,26 @@ class PS1Target(object):
             x,y = img.coords_to_pixel(self.coordinate.ra.deg, self.coordinate.dec.deg)
         else:
             x,y = self.coordinate.ra.deg, self.coordinate.dec.deg
-            
+
         ax.scatter(x,y, **{**dict(marker="+", color='k', s=100),**kwargs})
-        
+
         if ellipse:
             from matplotlib.patches import Ellipse
             x,y,a,b,t = self.get_nearest_ellipse(source=source, inpixel=inpixel)
-            ax.add_patch(Ellipse([x,y],2*a*scaleup,2*b*scaleup,t*units.rad.to("deg"), 
-                     facecolor="None", edgecolor=ell_color, lw=2))            
+            ax.add_patch(Ellipse([x,y],2*a*scaleup,2*b*scaleup,t*units.rad.to("deg"),
+                     facecolor="None", edgecolor=ell_color, lw=2))
             if not has_img:
                 ax.scatter(x,y, marker=".", color=ell_color)
                 ax.set_xlim(x-3*a,x+3*a)
                 ax.set_ylim(y-3*a,y+3*a)
-                
+
         if show_coord is not None:
             if inpixel:
                 x,y = img.coords_to_pixel(*show_coord)
             else:
                 x,y, = show_coord
-            
-            ax.scatter(x,y, marker="x", color=pt_color, s=100)
+
+            ax.scatter(x, y, marker="x", color=coord_color, s=100)
 
         return ax.figure
     # ============= #
