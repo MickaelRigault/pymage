@@ -711,7 +711,7 @@ class PS1Target(object):
     def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True, load_weight=False, background=0, target=None):
         """ """
         if not _HAS_ASTROBJECT:
-            raise ImportError("This method needs astrobject. pip install astropbject")
+            raise ImportError("This method needs astrobject. pip install astrobject")
         
         from astrobject import get_target
         filters = np.atleast_1d(filters)
