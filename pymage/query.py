@@ -194,7 +194,7 @@ class _Query_( object ):
         self.metadata.to_csv(fileout, index=False)
         
     def download_target_data(self, targetname, dirout="default",
-                                 overwrite=False,  dl=True, verbose=True, **kwargs):
+                                 overwrite=False,  dl=True, verbose=False, **kwargs):
         """ Download the target photometric data. 
         
         Parameters
