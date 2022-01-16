@@ -194,8 +194,7 @@ class _Query_( object ):
         self.metadata.to_csv(fileout, index=False)
         
     def download_target_data(self, targetname, dirout="default",
-                                 overwrite=False,
-                                 dl=True, **kwargs):
+                                 overwrite=False,  dl=True, verbose=True, **kwargs):
         """ Download the target photometric data. 
         
         Parameters
@@ -213,7 +212,7 @@ class _Query_( object ):
             If the file already exists where you want to download them, should this overwrite them?
             
         dl: [bool] -optional-
-            Should the download be actually launched ? 
+            Should the download be actually launched ?
             If False: the returns the urls to be downloaded and where they will be.
 
         **kwargs goes to _build_target_data_url_and_path_
@@ -225,6 +224,7 @@ class _Query_( object ):
         """
         if dirout is None or dirout in ["default"]:
             dirout = self._default_dldir
+            
         if io.DATAPATH == "_notdefined_":
             raise AttributeError("You must define the global variable DATAPATH to bve able to download/store data")
 
@@ -241,7 +241,8 @@ class _Query_( object ):
         if not dl:
             return urls, localpaths
         
-        return [io.download_single_url(url_, localpath_, overwrite=overwrite)
+        return [io.download_single_url(url_, localpath_,
+                    overwrite=overwrite, verbose=verbose)
                     for url_, localpath_ in zip(urls, localpaths)]
         
     def _build_target_data_url_and_path_(self, targetname, dirout, filters=None, **kwargs):
@@ -280,8 +281,8 @@ class _Query_( object ):
 #    GALEX               #
 #                        #
 # ====================== #
-GALEX_DIR            = io.DATAPATH+"GALEX/"
-_GALEX_METADATA_FILE = GALEX_DIR+"target_source.csv"
+GALEX_DIR            = os.path.join(io.DATAPATH, "GALEX")
+_GALEX_METADATA_FILE = os.path.join(GALEX_DIR,"target_source.csv")
 
 def query_mast(ra, dec, instrument=None, radius="10 arcsec"):
     """ returns a table containing the existing data information """
