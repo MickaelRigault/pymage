@@ -164,7 +164,7 @@ class _Query_( object ):
             return
         
         df_ = self.query_metadata(ra,dec)
-        if len(df_):
+        if len(df_)==0:
             warnings.warn(f"{targetname} [{ra},{dec}] is outside of the galex footprint | metadata filled with NaN")
             df_ = pandas.DataFrame(columns=df_.columns, index=[0])
             
