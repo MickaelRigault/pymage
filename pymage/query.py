@@ -296,7 +296,7 @@ def query_mast(ra, dec, instrument=None, radius="10 arcsec"):
 def _galex_info_to_urlpath_(baseurl, basename, which=["int", "skybg"], bands=["NUV","FUV"]):
     """ Build URL or fullpath for the given data """
     
-    return [[baseurl+"/"+basename+"-%sd-%s.fits.gz"%(band[0].lower(),todl_) for band in np.atleast_1d(bands)]
+    return [[os.path.join(baseurl,f"{basename}-{band[0].lower()}-{todl_}.fits.gz") for band in np.atleast_1d(bands)]
            for todl_ in np.atleast_1d(which)]
     
 def query_galex_metadata(ra, dec):
