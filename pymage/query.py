@@ -33,7 +33,7 @@ def load_metadata(instrument, load_empty=False):
 
 def get_directory(instrument):
     """ The default instrument directory on your computer """
-    return  io.DATAPATH+"%s/"%instrument.upper()
+    return  os.path.join(io.DATAPATH,f"{instrument.lower()}")
 
 def metadata_to_url(instrument, baseurl, basename, bands, **kwargs):
     """ build url (or local fullpath) from metadata information """
@@ -281,7 +281,7 @@ class _Query_( object ):
 #    GALEX               #
 #                        #
 # ====================== #
-GALEX_DIR            = os.path.join(io.DATAPATH, "GALEX")
+GALEX_DIR            = get_directory("GALEX")
 _GALEX_METADATA_FILE = os.path.join(GALEX_DIR,"target_source.csv")
 
 def query_mast(ra, dec, instrument=None, radius="10 arcsec"):
