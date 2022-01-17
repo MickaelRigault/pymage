@@ -268,7 +268,7 @@ class _Query_( object ):
                for index_, row in target_metadata.iterrows()
                                if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         localpath_ = np.asarray([metadata_to_url(self.INSTRUMENT, dirout, row["basename"], bands=row["filters"], **kwargs)
-                for index_, row in self.target_metadata.iterrows()
+                for index_, row in target_metadata.iterrows()
                                if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         
         return url_, localpath_
