@@ -37,16 +37,16 @@ def get_directory(instrument):
 
 def metadata_to_url(instrument, baseurl, basename, bands, **kwargs):
     """ build url (or local fullpath) from metadata information """
-    return eval("_%s_info_to_urlpath_(baseurl=baseurl, basename=basename, bands=bands,**kwargs)"%_test_instrument_(instrument) )
+    return eval(f"_{_test_instrument_(instrument)}_info_to_urlpath_(baseurl=baseurl, basename=basename, bands=bands,**kwargs)")
 
 def _get_metadata_file_(instrument):
     """ returns the metadata associated to the given instruement """
-    return eval("_%s_METADATA_FILE"%instrument.upper())
+    return eval(f"_{instrument.upper()}_METADATA_FILE")
 
 def _test_instrument_(instrument):
     """ """
     if instrument.lower() not in KNOWN_INSTRUMENTS:
-        raise NotImplementedError("unknown instrument: %s"%instrument +"\n"+"known instruments: "+",".join(KNOWN_INSTRUMENTS))
+        raise NotImplementedError(f"unknown instrument: {instrument}" +"\n"+"known instruments: "+",".join(KNOWN_INSTRUMENTS))
     return instrument.lower()
 
 ##########################
@@ -73,8 +73,9 @@ class _Query_( object ):
         if fromdir is None or fromdir in ["default"]:
             fromdir = self._default_dldir
 
-        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir,
-                                                                     filters=filters, **kwargs)
+        urls, localpaths = self._build_target_data_url_and_path_(targetname, fromdir, filters=filters, **kwargs)
+        if urls is None:
+            return []
         return [l_ for l_ in localpaths if os.path.exists(l_) or not must_exists]
 
     def get_target_coords(self, targetname):
@@ -163,8 +164,11 @@ class _Query_( object ):
             return
         
         df_ = self.query_metadata(ra,dec)
+        if len(df_):
+            warnings.warn(f"{targetname} [{ra},{dec}] is outside of the galex footprint | metadata filled with NaN")
+            df_ = pandas.DataFrame(columns=df_.columns, index=[0])
+            
         df_["name"] = targetname
-        
         if not update:
             return df_
         
@@ -230,6 +234,9 @@ class _Query_( object ):
 
         if dirout in ["StringIO", "stringio", "iostring", "io", "BytesIO","BytesIO","bytes"]:
             urls = self._build_target_data_url_and_path_(targetname, "default", **kwargs)[0]
+            if urls is None:
+                return []
+
             # Bytes IO are more suitable for internet requests
             localpaths = ["BytesIO" for i in range(len(urls))]
             is_stringio=True
@@ -237,6 +244,8 @@ class _Query_( object ):
         else:
             urls, localpaths = self._build_target_data_url_and_path_(targetname, dirout, **kwargs)
             is_stringio=False
+            if urls is None:
+                return []
 
         if not dl:
             return urls, localpaths
@@ -250,11 +259,16 @@ class _Query_( object ):
         if not self.is_target_known(targetname):
             raise AttributeError("unknown target. Please run download_target_metadata()")
 
+        target_metadata = self.metadata[(self.metadata["name"]==targetname)  & ~self.metadata["basename"].isnull()]
+        if len(target_metadata)==0:
+            warnings.warn("No galex data associated to target ('name') ")
+            return None, None
+        
         url_ = np.asarray([metadata_to_url(self.INSTRUMENT, row["baseurl"], row["basename"], bands=row["filters"], **kwargs)
-               for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()
+               for index_, row in target_metadata.iterrows()
                                if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         localpath_ = np.asarray([metadata_to_url(self.INSTRUMENT, dirout, row["basename"], bands=row["filters"], **kwargs)
-                for index_, row in self.metadata[self.metadata["name"]==targetname].iterrows()
+                for index_, row in self.target_metadata.iterrows()
                                if (filters is None or filters in ["all","*"]) or row["filters"] in filters]).flatten()
         
         return url_, localpath_
