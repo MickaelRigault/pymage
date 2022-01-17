@@ -3,7 +3,7 @@
 import os
 import pandas
 import numpy as np
-
+import warnings
 from astroquery.mast import Observations
 
 from . import io
@@ -314,7 +314,7 @@ def query_galex_metadata(ra, dec):
 class GALEXQuery( _Query_ ):
     """ Simply Class to manage the GALEX data IO """
     INSTRUMENT = "GALEX"
-    def get_target_instruments(self, targetname, contains=None, buffer_safe_width=0.05):
+    def get_target_instruments(self, targetname, contains=None, buffer_safe_width=0.025):
         """ """
         if not self.is_target_known(targetname):
             raise AttributeError("unknown target. Please run download_target_metadata(), and download the associated files")
@@ -328,8 +328,8 @@ class GALEXQuery( _Query_ ):
         instru = []
         for fullpath in [f for f in all_data_int if f.replace("int","skybg") in target_data]:
             inst_ = instruments.get_instrument(fullpath)
-            if not inst_.is_target_in(target,buffer_safe_width=buffer_safe_width):
-                print("Given target not inside GALEX FoV for %s - skipped"%fullpath)
+            if not inst_.is_target_in(target, buffer_safe_width=buffer_safe_width):
+                warnings.warn(f"Given target not inside GALEX FoV for {fullpath} - skipped")
                 continue
             
             inst_.set_sky(fullpath.replace("int","skybg"))
