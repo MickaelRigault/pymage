@@ -5,6 +5,7 @@ import numpy as np
 import json
 import requests
 import pandas
+import warnings
 # URL/HTLM
 from urllib.parse import quote as urlencode
 from urllib.request import urlretrieve
@@ -111,7 +112,8 @@ def ps1search(table="mean",release="dr1",format="dataframe",columns=None,
         try:
             return ascii.read(r.text).to_pandas()
         except:
-            raise IOError("DataFrame conversion failed. Most likely nothing at %s"%url)
+            warnings.warn(f"DataFrame conversion failed. Most likely nothing at {url}. Empty DataFrame returned")
+            return pandas.DataFrame()
     
     if format == "json":
         return r.json()
@@ -319,6 +321,9 @@ def get_ps_url(ra, dec, size=240, output_size=None, filters="grizy", type="stack
     """
         
     df = query_panstarrs_metadata(ra, dec, size=size, type=type, filters=filters)
+    if len(df) == 0:
+        return [None]*len(filters)
+    
     return _ps_pstourl_(df, output_size=output_size, size=size, type=type, format=format)#, color=color)
 
 
@@ -586,9 +591,9 @@ class PS1Target(object):
         """ """
         skycoord = ra,dec
         if load_catalog:
-            dataframe = ps1cone(ra, dec, rdeg, table="stack",release='dr2', format="dataframe",
-                          columns=PS1STACKCOL,
-                          verbose=False)
+            dataframe = ps1cone(ra, dec, rdeg, table="stack",release='dr2',
+                                format="dataframe",columns=PS1STACKCOL,
+                                verbose=False)
         else:
             dataframe=None
         return cls(dataframe, skycoord)
@@ -606,7 +611,12 @@ class PS1Target(object):
 
     def set_sep(self, band="r"):
         """ """
-        self._sep = SEPCatalog(self.imgcutout[band].sepobjects, band, radec=[self.coordinate.ra.deg,self.coordinate.dec.deg])
+        img = self.imgcutout[band]
+        if img is None:
+            warnings.warn("Cannot set sep to the given band. img is None.")
+            return
+        
+        self._sep = SEPCatalog(img.sepobjects, band, radec=[self.coordinate.ra.deg,self.coordinate.dec.deg])
 
     def set_galcat(self, band="r", which="DeV"):
         """ """
@@ -708,7 +718,8 @@ class PS1Target(object):
             self._is_extended_cat_set = False
             return results
 
-    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True, load_weight=False, background=0, target=None):
+    def download_cutout(self, filters=["g","r","i","z","y"], size=240, run_sep=True,
+                            load_weight=False, background=0, target=None):
         """ """
         if not _HAS_ASTROBJECT:
             raise ImportError("This method needs astrobject. pip install astrobject")
@@ -720,13 +731,18 @@ class PS1Target(object):
             _wt_url = get_ps_url(self.coordinate.ra.deg, self.coordinate.dec.deg, filters="".join(filters), size=size, type="stack.wt")
         self._cutout = {}
         for ii, url in enumerate(self._url):
-            inst_ = panstarrs.PanSTARRS(download_single_url(url, fileout="BytesIO"),
+            if url is not None:
+                inst_ = panstarrs.PanSTARRS(download_single_url(url, fileout="BytesIO"),
                                         weightfilename=download_single_url(_wt_url[ii], fileout="BytesIO") if load_weight else None,
                                         background=background, astrotarget=target)
-            self._cutout[inst_.bandname.split(".")[-1]] = inst_
+            else:
+                inst_ = None
+            self._cutout[ filters[ii] ] = inst_
         
         if self.coordinate is not None:
             for img in self._cutout.values():
+                if img is None:
+                    continue
                 if not img.has_target():
                     img.set_target(get_target(ra=self.coordinate.ra.deg,
                                               dec=self.coordinate.dec.deg
@@ -740,7 +756,9 @@ class PS1Target(object):
         if filters is None or filters in ["all", "*"]:
             filters = self.imgcutout.keys()
         for f in filters:
-            self.imgcutout[f].sep_extract(**kwargs)
+            img = self.imgcutout[f]
+            if img is not None:
+                img.sep_extract(**kwargs)
         
     # ------- #
     # GETTER  #
